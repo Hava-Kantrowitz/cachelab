@@ -25,13 +25,13 @@ int main()
 	int miss_count = 0;//number of misses, initialized to 0
 	int eviction_count = 0;//number of evictions, initialized to 0
 
-	int index;//middle bits of address, which set it'll be in
 	setCache();
 
 	for (int i = 0; i < linesInFile; i++){
-	  grabLine(fileLine);
-	  int tag = fileLine & 0110;
-	  int validBit = fileLine & 0110;
+	  int cacheLine = grabLine(fileLine);
+	  int index = cacheLine & 0110;//bit manipulation to get index of file line
+	  int tag = cacheLine & 0110;//bit manipulation to get tag of file line
+	  int validBit = cacheLine & 0110;//bit manipulation to get valid bit of file line
 	  isHit(validBit, tag, givenTag);
 	}
 
