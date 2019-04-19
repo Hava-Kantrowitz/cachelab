@@ -25,7 +25,7 @@ int main()
 	int miss_count = 0;//number of misses, initialized to 0
 	int eviction_count = 0;//number of evictions, initialized to 0
 
-	int index;//middle bits of address, which set it'll be in
+	//int index;//middle bits of address, which set it'll be in
 
 
 	printSummary(hit_count, miss_count, eviction_count);
@@ -35,7 +35,7 @@ int main()
 /**
  * Creates the simulated cache
  */
-int setCache(struct cacheLine cache){
+int setCache(int cache){
 
 	return 1;
 }
@@ -44,13 +44,15 @@ int setCache(struct cacheLine cache){
  * Determines if hit, increments needed counters
  */
 int isHit(int validBitCache, int givenTag, int tag){
+  int hit_count = 0;
+  int miss_count = 0;
 	if (validBitCache == 1 && tag == givenTag){
 		hit_count++;
 		return hit_count;
 	}
 	else{
-		miss_count++
-		return miss_count;
+	  miss_count++;
+	  return miss_count;
 	}
 }
 
@@ -58,7 +60,9 @@ int isHit(int validBitCache, int givenTag, int tag){
  * performs eviction from cache
  */
 int eviction(){
-
+  return 1;
 }
+
+
 
 
