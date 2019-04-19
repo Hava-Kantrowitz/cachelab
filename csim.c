@@ -63,6 +63,13 @@ int eviction(){
   return 1;
 }
 
+/**
+ *
+ */
+int populateCache(){
+  return 1;
+}
+
 
 
 
