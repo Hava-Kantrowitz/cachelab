@@ -25,8 +25,15 @@ int main()
 	int miss_count = 0;//number of misses, initialized to 0
 	int eviction_count = 0;//number of evictions, initialized to 0
 
-	//int index;//middle bits of address, which set it'll be in
+	int index;//middle bits of address, which set it'll be in
+	setCache();
 
+	for (int i = 0; i < linesInFile; i++){
+	  grabLine(fileLine);
+	  int tag = fileLine & 0110;
+	  int validBit = fileLine & 0110;
+	  isHit(validBit, tag, givenTag);
+	}
 
 	printSummary(hit_count, miss_count, eviction_count);
     return 0;
@@ -41,6 +48,33 @@ int setCache(int cache){
 }
 
 /**
+ * performs eviction from cache
+ */
+int eviction(int itemsInList){
+  int eviction_count = 0;
+  //figure out which one is lru
+  //kick it out of cache
+  //populate it into cache
+  if (numBlocks == 1){//if it is a direct map, evict what is in the spot and put new item in
+    head_pointer* = item_pointer*;
+    free(head_pointer);
+    eviction_count++;
+    isHit(validBitCache, givenTag, tag);
+  }
+  if (itemsInList == numBlocks){//if the number of items in list is equal to number of lines in cache block
+    head_pointer* = second_pointer*;//set the pointer of the head equal to the second pointer
+    free(head_pointer);//free the memory for the head, removing it from cache
+    //add the new node somehow
+    eviction_count++;//increment the eviction
+    isHit(validBitCache, givenTag, tag);
+  }
+  else{
+    //add the new node
+  }
+  return eviction_count;
+}
+
+/**
  * Determines if hit, increments needed counters
  */
 int isHit(int validBitCache, int givenTag, int tag){
@@ -52,21 +86,15 @@ int isHit(int validBitCache, int givenTag, int tag){
 	}
 	else{
 	  miss_count++;
+	  eviction();
 	  return miss_count;
 	}
 }
 
-/**
- * performs eviction from cache
+/*
+ * Gets the line in the cache we are looking at
  */
-int eviction(){
-  return 1;
-}
-
-/**
- *
- */
-int populateCache(){
+int grabLine(int index){
   return 1;
 }
 
