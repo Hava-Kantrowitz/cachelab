@@ -15,89 +15,87 @@ int main()
 	//if hit, increment hit count
 	//if not hit, increment miss count
 	//must keep track of LRU -- counter or method
+        //gonna need some more structs my dude
 
 	struct cacheLine{
-		int validBit;//0 or 1, whether or not the data is in the cache
-		int tag;//the tag, the high-order bits of memory
-	};//values needed to simulate cache
+	  int tag;//the tag, the high-order bits of memory
+	  int validBit;//0 or 1, whether or not the data is in the cache
+	} cacheLine;//values needed to simulate cache
 
 	int hit_count = 0;//number of hits, initialized to 0
 	int miss_count = 0;//number of misses, initialized to 0
 	int eviction_count = 0;//number of evictions, initialized to 0
 
-	setCache();
+	cacheLine* cache = setCache(s, E, b);
 
-	for (int i = 0; i < linesInFile; i++){
-	  int cacheLine = grabLine(fileLine);
-	  int index = cacheLine & 0110;//bit manipulation to get index of file line
-	  int tag = cacheLine & 0110;//bit manipulation to get tag of file line
-	  int validBit = cacheLine & 0110;//bit manipulation to get valid bit of file line
-	  isHit(validBit, tag, givenTag);
-	}
+	//assume function that grabs 1 line of file and determines if it is usable
+	//the output of that function is the address
+	int output = cacheLookup(address, cache);
+	
 
 	printSummary(hit_count, miss_count, eviction_count);
     return 0;
 }
 
 /**
- * Creates the simulated cache
+ * Gets the index
  */
-int setCache(int cache){
-
-	return 1;
+int getIndex(int address){
+  int index = address & 0100;//bit manipulation to get index
+  return index;
 }
 
 /**
- * performs eviction from cache
+ * Gets the tag
  */
-int eviction(int itemsInList){
-  int eviction_count = 0;
-  //figure out which one is lru
-  //kick it out of cache
-  //populate it into cache
-  if (numBlocks == 1){//if it is a direct map, evict what is in the spot and put new item in
-    head_pointer* = item_pointer*;
-    free(head_pointer);
-    eviction_count++;
-    isHit(validBitCache, givenTag, tag);
-  }
-  if (itemsInList == numBlocks){//if the number of items in list is equal to number of lines in cache block
-    head_pointer* = second_pointer*;//set the pointer of the head equal to the second pointer
-    free(head_pointer);//free the memory for the head, removing it from cache
-    //add the new node somehow
-    eviction_count++;//increment the eviction
-    isHit(validBitCache, givenTag, tag);
-  }
-  else{
-    //add the new node
-  }
-  return eviction_count;
+int getTag(int address){
+  int tag = address & 0110;//bit manipulation to get tag
+  return tag;
 }
 
 /**
- * Determines if hit, increments needed counters
+ * Sets the valid bit
  */
-int isHit(int validBitCache, int givenTag, int tag){
-  int hit_count = 0;
-  int miss_count = 0;
-	if (validBitCache == 1 && tag == givenTag){
-		hit_count++;
-		return hit_count;
-	}
-	else{
-	  miss_count++;
-	  eviction();
-	  return miss_count;
-	}
-}
-
-/*
- * Gets the line in the cache we are looking at
- */
-int grabLine(int index){
+int setValidBit(cacheLine* base_index, cacheLine* tag1, int updatedVal){
+  cacheLine* location = base_index + tag1 + sizeof(base_index.tag);//set the location to change as the base index plus the given tag plus however many bits are in the tag to get to valid bit
+  location.validBit = updatedVal;//set the valid bit at that location to the updated value
   return 1;
 }
 
+/**
+ * Looks up the given address and determines if it exists in cache
+ */
+int cacheLookup(int address, cacheLine* cache){
+  int answer = 0;
+  int tag = getTag(address);
+  int index = getIndex(address);
+  cacheLine* line = cache + (cacheLine*)index;
+  int currentTag = getTag(line);//this is getting passed into function that requires int input -- issue
+  if (tag == currentTag){
+    answer = 1;
+  }
+  else{
+    answer = eviction(index, tag, cache);
+  }
+  return answer;
+}
 
+/**
+ * Creates the simulated cache
+ */
+int setCache(int numSets, int linesPerSet, int blockSize){
 
+   cacheLine* cacheSize = malloc(sizeof(cacheLine)*numSets);//creates array, cacheSize is pointer to 1st element in array
+   for (int i = 0; i < numSets; i++){
+     cacheLine* tag1 = 0;//need some way to update tag, how is tag initialized? 
+     setValidBit(cacheSize, tag1, 0);//initializes the valid bit of each line to 0
+   }  
+     
+}
 
+/**
+ * determines if eviction is needed, performs eviction from cache
+ */
+int eviction(int index, int tag, cacheLine* cache){
+  cacheLine* line = 
+}
