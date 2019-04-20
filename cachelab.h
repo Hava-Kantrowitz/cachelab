@@ -16,6 +16,12 @@ typedef struct trans_func{
   unsigned int num_evictions;
 } trans_func_t;
 
+struct cacheLine {
+	    	int tag;	//the tag, the high-order bits of memory
+       		int validBit;	//0 or 1, whether or not the data is in the cache
+       	};
+       	//values needed to simulate cache
+
 /* 
  * printSummary - This function provides a standard way for your cache
  * simulator * to display its final hit and miss statistics
@@ -33,5 +39,23 @@ void correctTrans(int M, int N, int A[N][M], int B[M][N]);
 /* Add the given function to the function list */
 void registerTransFunction(
     void (*trans)(int M,int N,int[N][M],int[M][N]), char* desc);
+
+/*Get the index*/
+int getIndex(int address, int index_bits);
+
+/*Get the tag*/
+int getTag(int address, int tag_bits);
+
+/*Set the valid bit*/
+int setValidBit(struct cacheLine* base_index, int index);
+
+/*Perform cache lookup*/
+int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits);
+
+/*Sets up the cache*/
+struct cacheLine* setCache(int numSets, int linesPerSet, int blockSize);
+
+/*Determines if eviction*/
+int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext);
 
 #endif /* CACHELAB_TOOLS_H */
