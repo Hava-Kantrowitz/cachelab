@@ -6,6 +6,9 @@
 #define CACHELAB_TOOLS_H
 
 #define MAX_TRANS_FUNCS 100
+#define MISS 0
+#define HIT 1
+#define EVICT 2
 
 typedef struct trans_func{
   void (*func_ptr)(int M,int N,int[N][M],int[M][N]);
@@ -41,16 +44,16 @@ void registerTransFunction(
     void (*trans)(int M,int N,int[N][M],int[M][N]), char* desc);
 
 /*Get the index*/
-int getIndex(int address, int index_bits);
+int getIndex(int address, int index_bits, int offset_bits);
 
 /*Get the tag*/
-int getTag(int address, int tag_bits);
+int getTag(int address, int tag_bits, int offset_bits, int index_bits);
 
 /*Set the valid bit*/
 int setValidBit(struct cacheLine* base_index, int index);
 
 /*Perform cache lookup*/
-int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits);
+int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits, int address_size);
 
 /*Sets up the cache*/
 struct cacheLine* setCache(int numSets, int linesPerSet, int blockSize);
