@@ -53,12 +53,13 @@ int getTag(int address, int tag_bits, int offset_bits, int index_bits);
 int setValidBit(struct cacheLine* base_index, int index);
 
 /*Perform cache lookup*/
-int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits, int address_size);
+int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits, int address_size, int numLines);
 
 /*Sets up the cache*/
 struct cacheLine* setCache(int numSets, int linesPerSet, int blockSize);
 
 /*Determines if eviction*/
-int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext);
+int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext, int numLines);
+int evictionOrMissAssociativity(struct cacheLine* line, int currentTag, int tagNext, int numLines);
 
 #endif /* CACHELAB_TOOLS_H */
