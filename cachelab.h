@@ -9,6 +9,7 @@
 #define MISS 0
 #define HIT 1
 #define EVICT 2
+#include <stdio.h>
 
 typedef struct trans_func{
   void (*func_ptr)(int M,int N,int[N][M],int[M][N]);
@@ -60,5 +61,23 @@ struct cacheLine* setCache(int numSets, int linesPerSet, int blockSize);
 
 /*Determines if eviction*/
 int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext, int numLines, int instructNum);
+
+/* this gets the number of lines in the file */
+int numLinesFile(FILE* fp);
+
+/* gets the char from a line of the file */
+char getChar(char* line);
+
+/* gets the address from a line of the file */
+unsigned long getAddress(FILE* fp, int lineNumber);
+
+/* gets the number of bits occupied by address */
+int addressLength(unsigned long decAddr);
+
+/* prints the help menu */
+void printHelp(void);
+
+/* this gets a specified line from the file */
+char* readLine(FILE* fp, int lineNumber);
 
 #endif /* CACHELAB_TOOLS_H */
