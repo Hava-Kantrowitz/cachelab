@@ -20,10 +20,10 @@ typedef struct trans_func{
 } trans_func_t;
 
 struct cacheLine {
-	    	int tag;	//the tag, the high-order bits of memory
-       		int validBit;	//0 or 1, whether or not the data is in the cache
-       	};
-       	//values needed to simulate cache
+  int tag;//the tag, the high-order bits of memory
+  int validBit;//0 or 1, whether or not the data is in the cache
+  int recentInst;//the most recent instruction using this item of the cache line
+};//values needed to simulate cache
 
 /* 
  * printSummary - This function provides a standard way for your cache
@@ -53,13 +53,12 @@ int getTag(int address, int tag_bits, int offset_bits, int index_bits);
 int setValidBit(struct cacheLine* base_index, int index);
 
 /*Perform cache lookup*/
-int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits, int address_size, int numLines);
+int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits, int address_size, int numLines, int instrucNum);
 
 /*Sets up the cache*/
 struct cacheLine* setCache(int numSets, int linesPerSet, int blockSize);
 
 /*Determines if eviction*/
-int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext, int numLines);
-int evictionOrMissAssociativity(struct cacheLine* line, int currentTag, int tagNext, int numLines);
+int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext, int numLines, int instructNum);
 
 #endif /* CACHELAB_TOOLS_H */
