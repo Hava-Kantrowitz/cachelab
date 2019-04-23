@@ -20,11 +20,33 @@ typedef struct trans_func{
   unsigned int num_evictions;
 } trans_func_t;
 
-struct cacheLine {
-  int tag;//the tag, the high-order bits of memory
-  int validBit;//0 or 1, whether or not the data is in the cache
-  int recentInst;//the most recent instruction using this item of the cache line
-};//values needed to simulate cache
+typedef unsigned long long int memoryAddress;
+
+struct cacheInfo{
+  int index_bits;
+  int block_bits;
+  int associativity;
+  int num_sets;
+  int block_size;
+  int num_hits;
+  int num_misses;
+  int num_evicts;
+};
+
+struct lineInfo{
+  int lastUsed;
+  int validBit;
+  memoryAddress tag;
+  char *block;
+};
+
+struct set{
+  struct lineInfo *lines;
+};
+
+struct cache{
+  struct set *sets;
+};
 
 /* 
  * printSummary - This function provides a standard way for your cache
@@ -44,40 +66,18 @@ void correctTrans(int M, int N, int A[N][M], int B[M][N]);
 void registerTransFunction(
     void (*trans)(int M,int N,int[N][M],int[M][N]), char* desc);
 
-/*Get the index*/
-int getIndex(int address, int index_bits, int offset_bits);
+/*Set the cache up*/
+struct cache setCache(long long numSets, int numLines, long long blockSize);
 
-/*Get the tag*/
-int getTag(int address, int tag_bits, int offset_bits, int index_bits);
+/*Determines if and where there is empty space*/
+int emptyLine(struct set mySet, struct cacheInfo info);
 
-/*Set the valid bit*/
-int setValidBit(struct cacheLine* base_index, int index);
+/*Determines which line was most recently used*/
+int leastRecentlyUsed(struct set mySet, struct cacheInfo info, int *linesUsed);
 
-/*Perform cache lookup*/
-int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits, int address_size, int numLines, int instrucNum);
+/*Performs the search in the cache*/
+struct cacheInfo cacheLookup(struct cache myCache, struct cacheInfo info, memoryAddress address);
 
-/*Sets up the cache*/
-struct cacheLine* setCache(int numSets, int linesPerSet, int blockSize);
 
-/*Determines if eviction*/
-int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext, int numLines, int instructNum);
-
-/* this gets the number of lines in the file */
-int numLinesFile(FILE* fp);
-
-/* gets the char from a line of the file */
-char getChar(char* line);
-
-/* gets the address from a line of the file */
-unsigned long getAddress(FILE* fp, int lineNumber);
-
-/* gets the number of bits occupied by address */
-int addressLength(unsigned long decAddr);
-
-/* prints the help menu */
-void printHelp(void);
-
-/* this gets a specified line from the file */
-char* readLine(FILE* fp, int lineNumber);
 
 #endif /* CACHELAB_TOOLS_H */
