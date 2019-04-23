@@ -1,1 +1,222 @@
-/** * vabowen and hskantrowitz */#include "cachelab.h"#include <stdio.h>#include <stdbool.h>#include <string.h>#include <stdlib.h>/** * Sets up variables and calls the simulation * @param argc number of inputs on the command line * @param argv command line inputs * @return 1 if successfully completed,  */int main(int argc, char* argv[]){   bool h_flag = false; // determines if print help	bool v_flag = false; // determines if prints specifics	bool done = false; // checks if should stop	int s_index = -1; // the place of the s	int e_index = -1; // the place of the e	int b_index = -1; // the place of the b	int t_index = -1; // the place of the t	int set_index = 0;  // first required argument	int num_lines = 0;  // second required argument	int block_bits = 0; // third required argument	char file_name[100];	FILE* fp;	// checking if help is there	if(argc == 2 && (strcmp(argv[1],"-h") == 0)){		h_flag = true;		done = true;	}	// this is to get all the arguments	if(!done){		// getting the placement of each param		for(int i = 1; i < argc-1; i++){			// if -s then s arg at i+1			if(!(strcmp(argv[i],"-s"))){				s_index = i+1;			}			// same for -E			else if(!(strcmp(argv[i],"-E"))){				e_index = i+1;			}			// same for -b			else if(!(strcmp(argv[i],"-b"))){				b_index = i+1;			}			// same for -t			else if(!(strcmp(argv[i], "-t"))){				t_index = i+1;			}			// if -v then set v flag			else if(!(strcmp(argv[i],"-v"))){				v_flag = true;			}			// if -h then set h flag			else if(!(strcmp(argv[i], "-h"))){				h_flag = true;			}			// if any other option			else if(argv[i][0] == '-'){				done = true;				printf("./csim: invalid option -- '%c'\n",argv[i][1]);			}		}		// check when the v or h flag are last		if(!(strcmp(argv[argc-1],"-h"))){			h_flag = true;		}		if(!(strcmp(argv[argc-1],"-v"))){			v_flag = true;		}		// checking if h flag to stop and print		if(h_flag){			done = true;		}		// checks that all the required arguments are present		else if(argc < 9 && !done){			puts("./csim: Missing required command line argument");			done = true;		}		// checking that all the flags (for required) were found		if((s_index == -1 || b_index == -1 || e_index == -1 || t_index == -1) && !done){			done = true;			puts("./csim: Missing required command line argument");		}		// proceed with getting the arguments after flags		if (!done) {			char* ptr = 0;			// this gets the set index			long set_index_l = strtol(argv[s_index], &ptr, 10);			set_index = (int) set_index_l;			// this gets the number of lines per set (with v)			long num_lines_l = strtol(argv[e_index], &ptr, 10);			num_lines = (int) num_lines_l;			// this gets the number of block bits (with v)			long block_bits_l = strtol(argv[b_index], &ptr, 10);			block_bits = (int) block_bits_l;			// this checks for all valid input (chars will be zero)			if((set_index <= 0  || num_lines <= 0 || block_bits <= 0) && !done){				done = true;				puts("./csim: Missing required command line argument");			}		}	}	// prints the help if the arguments are not satisfied	if(done == true || h_flag == true) {		printHelp();	}		// all other params are set now time to check the file	if(!done){		strcpy(file_name, argv[t_index]); // get file		fp = fopen(file_name, "r");       // try to open		printf("File name is %s\n", file_name);		// if cannot open		if(!fp){			done = true;			printf("%s: No such file or directory\n", argv[t_index]);		}		fclose(fp);	}	// just to print here to see right now	printf("block bits: %d\n", block_bits);	printf("num_lines: %d\n", num_lines);	printf("set_index: %d\n", set_index);	printf("t_index: %d\n", t_index);	printf("v_flag: %d\n", v_flag);	// all arguments set before starting	if (!done) {		int hit_count = 0;	//number of hits, initialized to 0		int miss_count = 0;	//number of misses, initialized to 0		int eviction_count = 0;	//number of evictions, initialized to 0		int num_sets = 2 ^ set_index;		int block_size = 2 ^ block_bits;	        struct cacheLine * cache;		cache = setCache(num_sets, num_lines, block_size);	//assume function that grabs 1 line of file and determines if it is usable	//the output of that function is the address, called address		fp = fopen(file_name, "r");		int linesInFile = numLinesFile(fp);	        //fclose(fp);	for (int i = 0; i < linesInFile; i++){	  fp = fopen(file_name, "r");//get the address of the current line in the file	  int address = getAddress(fp, i);	  //fclose(fp);	  int address_size = addressLength(address);//get length of the current address	  fp = fopen(file_name, "r");	  char* instruction_string = readLine(fp, i);//get the instruction at the current address	  //fclose(fp);	  char instruction = getChar(instruction_string);	  int output = cacheLookup(address, cache, set_index, block_bits, address_size, num_lines, i);//perform the cache lookup	  	  if (instruction == 'M'){//if it is a move, call cache lookup twice	   if (output == MISS){//it was a miss, no eviction needed	     miss_count++;	   }	   else if (output == HIT){//it was a hit	     hit_count++;	   }	   else if (output == EVICT){//it was a miss with an eviction	     eviction_count++;	     miss_count++;	   }	   //second call with the load	   output = cacheLookup(address, cache, set_index, block_bits, address_size, num_lines, i);	   if (output == MISS){//it was a miss, no eviction needed	     miss_count++;	   }	   else if (output == HIT){//it was a hit	     hit_count++;	   }	   else if (output == EVICT){//it was a miss with an eviction	     eviction_count++;	     miss_count++;	   }	  }	  else if (instruction == 'L' || instruction == 'S'){//if it was a load or store, call once	   if (output == MISS){//it was a miss, no eviction needed	     miss_count++;	   }	   else if (output == HIT){//it was a hit	     hit_count++;	   }	   else if (output == EVICT){//it was a miss with an eviction	     eviction_count++;	     miss_count++;	   }	  }	}	//print verbose code 	printSummary(hit_count, miss_count, eviction_count);//summary of hits, misses, and counts	}    return 1;}/** * Gets the index * @param address the address to get the index of * @param index_bits the number of bits in the index * @param offset_bits the number of bits in the offset * @return the index of the address */int getIndex(int address, int index_bits, int offset_bits){  //middle bits are the index  unsigned long index_mask = (1 << index_bits) - 1;//get the correct mask size  index_mask = index_mask << offset_bits;//shift it to the correct location  int index = address & index_mask;//bit manipulation to get index  index = index >> offset_bits;//shift by offset to get actual index  return index;}/** * Gets the tag * @param address the address to get the tag of * @param tag_bits the number of bits in the tag * @param offset_bits the number of bits in the offset * @param index_bits the number of bits in the index * @return the tag of the address */int getTag(int address, int tag_bits, int offset_bits, int index_bits){  //front bits are tag  unsigned long tag_mask = (1 << tag_bits) - 1;//get the correct mask size  tag_mask = tag_mask << (offset_bits + index_bits);//shift it to the correct location  int tag = address & tag_mask;//bit manipulation to get tag  return tag;}/** * Sets the valid bit to 0 * @param base_index pointer to the base of the cache * @param index the index that the cache to be updated is on * @return 1 if the function successfully sets the valid bit */int setValidBit(struct cacheLine* base_index, int index){  struct cacheLine* location = base_index + index;//set the location to change as the base index plus the given tag plus however many bits are in the tag to get to valid bit  location->validBit = 0;//set the valid bit at that location to the updated value  return 1;}/** * Looks up the given address and determines if it exists in cache * @param address the address to look up * @param cache a pointer to the base index of the cache * @param index_bits the number of bits in the address * @param block_bits the number of bits in the block * @param address_size the size of the given address * @param numLines the associativity of the cache * @param instructNum the current instruction number * @return 0 if the lookup was a cold miss, 1 if it was a hit, and 2 if it was a miss with an eviction */int cacheLookup(int address, struct cacheLine* cache, int index_bits, int block_bits, int address_size, int numLines, int instructNum){  int answer = 0;  int tag_bits = address_size - (index_bits + block_bits);//get the number of bits in the tag  int tag = getTag(address, tag_bits, block_bits, index_bits);//get the tag  int index = getIndex(address, index_bits, block_bits);//get the index  struct cacheLine* line = cache + (index*numLines);//find the current line of the cache  struct cacheLine* checkLine = cache + (index*numLines);  for (int i = 0; i < numLines; i++){//loop through each of the lines in the cache block    checkLine = line + i;//increment through the cache block    int currentTag = checkLine->tag;    int validBit = checkLine->validBit;    if (tag == currentTag && validBit == 1){//if the tag in the cache is equal to the address tag and the valid bit is set      answer = 1;//it is a hit    }  }  if (answer == 0){//else it is a miss    int passTag = line->tag;    answer = evictionOrMiss(line, passTag, tag, numLines, instructNum);//determine if it is a cold miss or an eviction  }  return answer;}/** * Creates the simulated cache * @param numSets the number of sets in the cache * @param linesPerSet the associativity of the cache * @param blockSize the size of the blocks in the cache * @return pointer to the base of the created cache */struct cacheLine* setCache(int numSets, int linesPerSet, int blockSize){   struct cacheLine* cacheBasePtr = (struct cacheLine*) malloc((sizeof(struct cacheLine*)*numSets)*linesPerSet);//creates array, cacheSize is pointer to 1st element in array   for (int i = 0; i < numSets; i++){     int index = linesPerSet*i;//casts the line currently on to a cacheLine pointer     setValidBit(cacheBasePtr, index);//initializes the valid bit of each line to 0   }   return cacheBasePtr;     }/** * determines if eviction is needed, performs eviction from cache * @param line pointer to the current line in the cache * @param currentTag the tag currently in the cache * @param tagNext the tag of the address being looked at * @param numLines the associativity of the cache * @param instructNum the current instruction number * @return 0 if it was a cold miss, 2 if there was an eviction */int evictionOrMiss(struct cacheLine* line, int currentTag, int tagNext, int numLines, int instructNum){  int eviction = 0;  int validTrue = 0;  struct cacheLine* checkLine = line;  for (int i = 0; i < numLines; i++){//from the structure of the cache, the number of filled lines will all be in order     checkLine = line + i;    int validBit = checkLine->validBit;    if(validBit == 1){//check how many lines in the cache are already filled      validTrue++;    }  }  if (validTrue == 0){//if none of the lines are filled, populate the first space    line->tag = tagNext;    line->validBit = 1;    line->recentInst = instructNum;  }  else if (validTrue == numLines && numLines == 1){//if all lines are full and it is direct map, populate the space    line->tag = tagNext;    line->validBit = 1;    line->recentInst = instructNum;    eviction = 2;  }  else if(validTrue == numLines && numLines != 1){//if all lines are full and it isn't direct map, determine eviction    struct cacheLine* lruInst = line;    int lruVal = lruInst->recentInst;    int lruNum = 0;    for (int j = 0; j < numLines; j++){//search through each line within the set, looking at its instruction number      if(lruInst[j].recentInst < lruVal){	lruVal = lruInst[j].recentInst;//hold the index number of the lowest instruction number	lruNum = j;      }    }    line = line + (lruNum - 1);//populate the space at the index of the least recently used instruction (lowest instruction number)    line->tag = tagNext;    line->validBit = 1;    line->recentInst = instructNum;    eviction = 2;  }  else{//otherwise, put in the next available spot    line = line + validTrue;    line->tag = tagNext;    line->validBit = 1;    line->recentInst = instructNum;  }  return eviction;}/** * This is a function to get the number of lines in the file * @param fp the file in question * @return the number of lines in the file */int numLinesFile(FILE* fp){	int numRows = 0;  // initialize the number of rows	char currLine[100]; // to hold each line	// goes through until the end of the file to count the lines	while(fgets(currLine, 100, fp) != NULL){		numRows++;	}	return numRows;}/** * This function reads one line from the trace file * @param fp the file that is being read from * @param lineNumber the desired line (with 1st line = 0) * @return a pointer to the string of the desired line */char* readLine(FILE* fp, int lineNumber){	int rowNum = 0; // keeps track of the current row	char* givenLine = NULL;	bool done = false; // determine if found line	if (fp != false) {		char currLine[100]; // to hold each line as it goes (set to big num)		// this will count the total number of rows		while (((fgets(currLine, 100, fp)) != NULL) && !done) {			// checking if it is the desired line			if(rowNum == lineNumber){				givenLine = currLine;				fclose(fp);       // closes file				done = true;      // signifies found line			}			rowNum++;		}		}		return givenLine;}/** * this function gets the letter from the file line * @param line the given line of the file * @return the character of the file */char getChar(char* line){	char cInput = ' ';	if(line[0] != ' '){		cInput = 'I';	}	else if(line[1] =='M'){		cInput = 'M';	}	else if(line[1] == 'L'){		cInput = 'L';	}	else if(line[1] == 'S'){		cInput = 'S';	}	return cInput;}/** * This function gets the address input * @param fp the given line of the file * @param lineNumber the line of the desired address * @return the address at the given line */unsigned long getAddress(FILE* fp, int lineNumber){//	int numRows = numLinesFile(fp); // total rows in file	int rowCount = 0; // counts rows going through file	char cIn = 0; // stores char	unsigned long addrIn = 0; // stores address	int sizeIn = 0; // stores the size	bool done = false; // determine if found line	if (fp != false) {		// this will count the total number of rows		 while((fscanf(fp," %c %lx,%d\n",&cIn,&addrIn,&sizeIn)) != EOF && !done){			// checking if it is the desired line			if(rowCount == lineNumber){				fclose(fp);       // closes file				done = true;      // signifies found line			}			rowCount++;		}		}	return addrIn;}/** * This function gets the amount of bits the address occupies * @param decAddr the decimal form of the address * @return the amount of bits the address occupies */int addressLength(unsigned long decAddr){	unsigned long greatestBit = decAddr; // holding the greatest bit	int addrLen = 0; // keeps ttrack of the address length	greatestBit = decAddr >> 1 | greatestBit;     // moves over and or or to make the previous all ones	greatestBit = greatestBit >> 2 | greatestBit;	greatestBit = greatestBit >> 4 | greatestBit;	greatestBit = greatestBit >> 8 | greatestBit;	greatestBit = greatestBit >> 16 | greatestBit;	greatestBit = greatestBit >> 32 | greatestBit;	greatestBit = greatestBit >> 1;  // moves over so one before greatest are all ones	greatestBit = greatestBit + 1;  // adds 1 to make it 1 (greatest followed by zeros)	// goes through until the greatest bit is off	while(!!greatestBit){		greatestBit = greatestBit >> 1;		addrLen= addrLen + 1; // increments for each zero before greatest	}return addrLen;}/** * This is a method to print out the help instructions * @return does not return, prints out  */void printHelp(void){	puts("Usage: ./csim [-hv] -s <num> -E <num> -b <num> -t <file>");	puts("Options");	puts("  -h         Print this help message.");	puts("  -v         Optional verbose flag.");	puts("  -s <num>   Number of set index bits.");	puts("  -E <num>   Number of lines per set.");	puts("  -b <num>   Number of block offset bits.");	puts("  -t <file>  Trace file.\n");	puts("Examples:");	puts("  linux>  ./csim -s 4 -E 1 -b 4 -t traces/yi.trace");	puts("  linux>  ./csim -v -s 8 -E 2 -b 4 -t traces/yi.trace");}
+/**
+ * By Victoria Bowen and Hava Kantrowitz
+ * vabowen and hskantrowitz
+ */
+#include <stdlib.h>
+#include <stdio.h>
+#include <getopt.h>
+#include <strings.h>
+#include <math.h>
+#include "cachelab.h"
+
+
+int main(int argc, char **argv)
+{
+	
+	struct cache myCache;
+	struct cacheInfo info;
+	//bzero(&exampleParameter, sizeof(exampleParameter));  // read the report for this function's purpose
+	long long numSets;
+	long long blockSize;	
+	FILE *fp;
+	char instruction;
+	memoryAddress address;
+	int size;
+	char *trace_file;
+	char c;
+	/* this part takes in argument. More on how do I do this-> read report file */
+    while( (c=getopt(argc,argv,"s:E:b:t:vh")) != -1)
+	{
+        switch(c)
+		{
+        case 's':
+            info.index_bits = atoi(optarg);
+            break;
+        case 'E':
+            info.associativity = atoi(optarg);
+            break;
+        case 'b':
+            info.block_bits = atoi(optarg);
+            break;
+        case 't':
+            trace_file = optarg;
+            break;
+        case 'h':
+            exit(0);
+        default:
+            exit(1);
+        }
+    }
+   /* end of take in arguments from command line */ 
+
+ 	numSets = pow(2.0, info.index_bits);   // get Number of set by 2^s
+	blockSize = pow(2.0, info.block_bits);  //  get sizeOfBlock by 2^b
+	info.num_hits = 0;
+	info.num_misses = 0;
+	info.num_evicts = 0;
+	myCache = setCache(numSets, info.associativity, blockSize);
+
+	/* this part read file. More on how do I do this-> read report file */
+	fp  = fopen(trace_file, "r");
+	if (fp != NULL) {
+		while (fscanf(fp, " %c %llx,%d", &instruction, &address, &size) == 3) {
+			switch(instruction) {
+				case 'I':
+					break;
+				case 'L':
+					info = cacheLookup(myCache, info, address);
+					break;
+				case 'S':
+				        info = cacheLookup(myCache, info, address);
+					break;
+				case 'M':
+				        info = cacheLookup(myCache, info, address);
+					info = cacheLookup(myCache, info, address);
+					break;
+				default:
+					break;
+			}
+		}
+	}
+	/* end of read file */
+	
+    printSummary(info.num_hits, info.num_misses, info.num_evicts);
+	fclose(fp);
+    return 0;
+}
+
+struct cache setCache(long long numSets, int numLines, long long blockSize){
+  struct cache myCache;
+  struct set cacheSet;
+  struct lineInfo cacheLine;
+  
+  myCache.sets = (struct set*) malloc(sizeof(struct set) * numSets);
+  for (int set_index = 0; set_index < numSets; set_index++){ 
+	        // this loop loops through every line in every set and put the default value 0 inside every slot. (because we contain nothing in the cache)
+		
+		cacheSet.lines =  (struct lineInfo *) malloc(sizeof(struct lineInfo) * numLines);
+		myCache.sets[set_index] = cacheSet;
+
+		for (int line_index = 0; line_index < numLines; line_index++){ 
+			cacheLine.lastUsed = 0;
+			cacheLine.validBit = 0;
+			cacheLine.tag = 0; 
+			cacheSet.lines[line_index] = cacheLine;	
+		}
+		
+	} 
+
+	return myCache;
+
+}
+
+int emptyLine(struct set mySet, struct cacheInfo info) {
+	// check is whether the line that is matched is empty or not
+	
+  int emptyLine = -1;//the location of the empty line, initialized to -1 for no lines available
+
+	int numLines = info.associativity;
+	struct lineInfo line;
+
+	for (int i = 0; i < numLines; i++) {
+		line = mySet.lines[i];
+		if (line.validBit == 0) {    // one line is available
+			emptyLine = i;
+			return emptyLine;
+		}
+	}
+	return emptyLine;     // no line is available
+}
+
+int leastRecentlyUsed(struct set mySet, struct cacheInfo info, int *linesUsed) {
+	// this function detects the line that can be evicted ( the least recently used line)
+
+
+
+	int numLines = info.associativity;
+	int maxFreqUsage = mySet.lines[0].lastUsed;     //store usage frequency
+	int minFreqUsage = mySet.lines[0].lastUsed;	 // store usage frequency
+	int minFreqUsage_index = 0;
+
+
+	//very basic loop, compare each line with max & min to decide
+	for (int line_index = 1; line_index < numLines; line_index++) {
+		if (minFreqUsage > mySet.lines[line_index].lastUsed) {
+			minFreqUsage_index = line_index;	
+			minFreqUsage = mySet.lines[line_index].lastUsed;
+		}
+
+		if (maxFreqUsage < mySet.lines[line_index].lastUsed) {
+			maxFreqUsage = mySet.lines[line_index].lastUsed;
+		}
+	}
+
+	linesUsed[0] = minFreqUsage;
+	linesUsed[1] = maxFreqUsage;
+	return minFreqUsage_index;
+}
+
+/* this is the most important operation*/
+struct cacheInfo cacheLookup(struct cache myCache, struct cacheInfo info, memoryAddress address) {
+		int fullCache = 1;     // assume the cache is full
+
+		int numLines = info.associativity;
+		int lastHit = info.num_hits;
+
+		int tagSize = 64 - (info.index_bits + info.block_bits);    // take the valid tag out t = m-s-b
+		memoryAddress inputTag = address >> (info.index_bits + info.block_bits);
+		unsigned long long tempIndex = address << tagSize;
+		unsigned long long setIndex = tempIndex >> (tagSize + info.block_bits);
+		
+  		struct set mySet = myCache.sets[setIndex];
+
+		for (int lineIndex = 0; lineIndex < numLines; lineIndex++) 	{
+				
+			if (mySet.lines[lineIndex].validBit) {   // check the valid tag != 0
+					
+				if (mySet.lines[lineIndex].tag == inputTag) {
+						//check for matching tag
+
+
+					mySet.lines[lineIndex].lastUsed++;  // update for later use of eviction
+					info.num_hits++;    // tag match -> raise hit
+				}
+				// If the valid tag is different from 0 and the input tag matches that line tag, then it is safe for us to raise the hit because we did cache hit
+
+
+			} else if (!(mySet.lines[lineIndex].validBit) && (fullCache)) {
+				// valid tag = 0, fullcache != 0
+				
+				fullCache = 0;	    // reset this to 0	because there is empty space left.
+			}
+			// 
+		}	
+
+		if (lastHit == info.num_hits) {   // if after the above loop nothing hit -> we miss
+			info.num_misses++;    // raise miss
+		} else {
+			return info;
+		}
+		int *linesUsed = (int*) malloc(sizeof(int) * 2);
+		int minFreqUsage_index = leastRecentlyUsed(mySet, info, linesUsed);	
+
+		if (fullCache)     // if cache is full (checkFullCache!=0) do eviction
+		{
+			info.num_evicts++;
+			mySet.lines[minFreqUsage_index].tag = inputTag;
+			mySet.lines[minFreqUsage_index].lastUsed = linesUsed[1] + 1;
+		
+		}
+
+		else        // else write to tge empty line
+	        {
+			int empty_index = emptyLine(mySet, info);
+			mySet.lines[empty_index].tag = inputTag;
+			mySet.lines[empty_index].validBit = 1;
+			mySet.lines[empty_index].lastUsed = linesUsed[1] + 1;
+		}						
+
+		return info;
+}
+
+
