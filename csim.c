@@ -1,222 +1,1 @@
-/**
- * By Victoria Bowen and Hava Kantrowitz
- * vabowen and hskantrowitz
- */
-#include <stdlib.h>
-#include <stdio.h>
-#include <getopt.h>
-#include <strings.h>
-#include <math.h>
-#include "cachelab.h"
-
-
-int main(int argc, char **argv)
-{
-	
-	struct cache myCache;
-	struct cacheInfo info;
-	//bzero(&exampleParameter, sizeof(exampleParameter));  // read the report for this function's purpose
-	long long numSets;
-	long long blockSize;	
-	FILE *fp;
-	char instruction;
-	memoryAddress address;
-	int size;
-	char *trace_file;
-	char c;
-	/* this part takes in argument. More on how do I do this-> read report file */
-    while( (c=getopt(argc,argv,"s:E:b:t:vh")) != -1)
-	{
-        switch(c)
-		{
-        case 's':
-            info.index_bits = atoi(optarg);
-            break;
-        case 'E':
-            info.associativity = atoi(optarg);
-            break;
-        case 'b':
-            info.block_bits = atoi(optarg);
-            break;
-        case 't':
-            trace_file = optarg;
-            break;
-        case 'h':
-            exit(0);
-        default:
-            exit(1);
-        }
-    }
-   /* end of take in arguments from command line */ 
-
- 	numSets = pow(2.0, info.index_bits);   // get Number of set by 2^s
-	blockSize = pow(2.0, info.block_bits);  //  get sizeOfBlock by 2^b
-	info.num_hits = 0;
-	info.num_misses = 0;
-	info.num_evicts = 0;
-	myCache = setCache(numSets, info.associativity, blockSize);
-
-	/* this part read file. More on how do I do this-> read report file */
-	fp  = fopen(trace_file, "r");
-	if (fp != NULL) {
-		while (fscanf(fp, " %c %llx,%d", &instruction, &address, &size) == 3) {
-			switch(instruction) {
-				case 'I':
-					break;
-				case 'L':
-					info = cacheLookup(myCache, info, address);
-					break;
-				case 'S':
-				        info = cacheLookup(myCache, info, address);
-					break;
-				case 'M':
-				        info = cacheLookup(myCache, info, address);
-					info = cacheLookup(myCache, info, address);
-					break;
-				default:
-					break;
-			}
-		}
-	}
-	/* end of read file */
-	
-    printSummary(info.num_hits, info.num_misses, info.num_evicts);
-	fclose(fp);
-    return 0;
-}
-
-struct cache setCache(long long numSets, int numLines, long long blockSize){
-  struct cache myCache;
-  struct set cacheSet;
-  struct lineInfo cacheLine;
-  
-  myCache.sets = (struct set*) malloc(sizeof(struct set) * numSets);
-  for (int set_index = 0; set_index < numSets; set_index++){ 
-	        // this loop loops through every line in every set and put the default value 0 inside every slot. (because we contain nothing in the cache)
-		
-		cacheSet.lines =  (struct lineInfo *) malloc(sizeof(struct lineInfo) * numLines);
-		myCache.sets[set_index] = cacheSet;
-
-		for (int line_index = 0; line_index < numLines; line_index++){ 
-			cacheLine.lastUsed = 0;
-			cacheLine.validBit = 0;
-			cacheLine.tag = 0; 
-			cacheSet.lines[line_index] = cacheLine;	
-		}
-		
-	} 
-
-	return myCache;
-
-}
-
-int emptyLine(struct set mySet, struct cacheInfo info) {
-	// check is whether the line that is matched is empty or not
-	
-  int emptyLine = -1;//the location of the empty line, initialized to -1 for no lines available
-
-	int numLines = info.associativity;
-	struct lineInfo line;
-
-	for (int i = 0; i < numLines; i++) {
-		line = mySet.lines[i];
-		if (line.validBit == 0) {    // one line is available
-			emptyLine = i;
-			return emptyLine;
-		}
-	}
-	return emptyLine;     // no line is available
-}
-
-int leastRecentlyUsed(struct set mySet, struct cacheInfo info, int *linesUsed) {
-	// this function detects the line that can be evicted ( the least recently used line)
-
-
-
-	int numLines = info.associativity;
-	int maxFreqUsage = mySet.lines[0].lastUsed;     //store usage frequency
-	int minFreqUsage = mySet.lines[0].lastUsed;	 // store usage frequency
-	int minFreqUsage_index = 0;
-
-
-	//very basic loop, compare each line with max & min to decide
-	for (int line_index = 1; line_index < numLines; line_index++) {
-		if (minFreqUsage > mySet.lines[line_index].lastUsed) {
-			minFreqUsage_index = line_index;	
-			minFreqUsage = mySet.lines[line_index].lastUsed;
-		}
-
-		if (maxFreqUsage < mySet.lines[line_index].lastUsed) {
-			maxFreqUsage = mySet.lines[line_index].lastUsed;
-		}
-	}
-
-	linesUsed[0] = minFreqUsage;
-	linesUsed[1] = maxFreqUsage;
-	return minFreqUsage_index;
-}
-
-/* this is the most important operation*/
-struct cacheInfo cacheLookup(struct cache myCache, struct cacheInfo info, memoryAddress address) {
-		int fullCache = 1;     // assume the cache is full
-
-		int numLines = info.associativity;
-		int lastHit = info.num_hits;
-
-		int tagSize = 64 - (info.index_bits + info.block_bits);    // take the valid tag out t = m-s-b
-		memoryAddress inputTag = address >> (info.index_bits + info.block_bits);
-		unsigned long long tempIndex = address << tagSize;
-		unsigned long long setIndex = tempIndex >> (tagSize + info.block_bits);
-		
-  		struct set mySet = myCache.sets[setIndex];
-
-		for (int lineIndex = 0; lineIndex < numLines; lineIndex++) 	{
-				
-			if (mySet.lines[lineIndex].validBit) {   // check the valid tag != 0
-					
-				if (mySet.lines[lineIndex].tag == inputTag) {
-						//check for matching tag
-
-
-					mySet.lines[lineIndex].lastUsed++;  // update for later use of eviction
-					info.num_hits++;    // tag match -> raise hit
-				}
-				// If the valid tag is different from 0 and the input tag matches that line tag, then it is safe for us to raise the hit because we did cache hit
-
-
-			} else if (!(mySet.lines[lineIndex].validBit) && (fullCache)) {
-				// valid tag = 0, fullcache != 0
-				
-				fullCache = 0;	    // reset this to 0	because there is empty space left.
-			}
-			// 
-		}	
-
-		if (lastHit == info.num_hits) {   // if after the above loop nothing hit -> we miss
-			info.num_misses++;    // raise miss
-		} else {
-			return info;
-		}
-		int *linesUsed = (int*) malloc(sizeof(int) * 2);
-		int minFreqUsage_index = leastRecentlyUsed(mySet, info, linesUsed);	
-
-		if (fullCache)     // if cache is full (checkFullCache!=0) do eviction
-		{
-			info.num_evicts++;
-			mySet.lines[minFreqUsage_index].tag = inputTag;
-			mySet.lines[minFreqUsage_index].lastUsed = linesUsed[1] + 1;
-		
-		}
-
-		else        // else write to tge empty line
-	        {
-			int empty_index = emptyLine(mySet, info);
-			mySet.lines[empty_index].tag = inputTag;
-			mySet.lines[empty_index].validBit = 1;
-			mySet.lines[empty_index].lastUsed = linesUsed[1] + 1;
-		}						
-
-		return info;
-}
-
-
+/** * By Victoria Bowen and Hava Kantrowitz * vabowen-hskantrowitz */#include <stdlib.h>#include <stdio.h>#include <getopt.h>#include <strings.h>#include <math.h>#include "cachelab.h"/** * Main function to facilitate cache simulation * @param argc Number of words on the command line * @param argv Array of pointers to character strings representing the words on the command line * @return 0 if the code runs */int main(int argc, char **argv){	  struct cache myCache;//variable to store the overall cache structure  struct cacheInfo info;//variable to store the info for the cache  long long numSets;//number of sets in the cache  long long blockSize;//block size for cache blocks	  FILE *fp;//the file to be read in   char instruction;//the instruction, either M, L, I, or S  memoryAddress address;//the address to look at in the cache  int size;//size to be used in parsing  char *trace_file;//to be used with getopt  char c;//to be used with getopt	  while( (c=getopt(argc,argv,"s:E:b:t:vh")) != -1)//get opt code to take inputs from the command line	{        switch(c)		{	          case 's':	  info.index_bits = atoi(optarg);//inputs after s will be index bits            break;        case 'E':	  info.associativity = atoi(optarg);//inputs after E will be the associativity            break;        case 'b':	  info.block_bits = atoi(optarg);//inputs after b will be block bits            break;        case 't':	  trace_file = optarg;//inputs after t will be the trace file            break;        case 'h':	  exit(0);//if the h flag is set they asked for help, so exit        default:            exit(1);        }    }  numSets = pow(2.0, info.index_bits);//number of sets, 2^s  blockSize = pow(2.0, info.block_bits);//block size, 2^s  info.num_hits = 0;//number of hits, initialized to 0  info.num_misses = 0;//number of misses, initialized to 0  info.num_evicts = 0;//number of evictions, initialized to 0  myCache = setCache(numSets, info.associativity, blockSize);//create the cache  fp  = fopen(trace_file, "r");//open the file  if (fp != NULL) {    while (fscanf(fp, " %c %llx,%d", &instruction, &address, &size) == 3) {//go through the file       switch(instruction) {//looking at the instruction      case 'I'://if it's an I just skip it	break;      case 'L'://if it is an L look in cache once	info = cacheLookup(myCache, info, address);	break;      case 'S'://if it is an S look in cache once	info = cacheLookup(myCache, info, address);	break;      case 'M'://if it is M look in cache twice	info = cacheLookup(myCache, info, address);	info = cacheLookup(myCache, info, address);	break;      default://if it defaults skip it, something went wrong	break;      }    }  }	  printSummary(info.num_hits, info.num_misses, info.num_evicts);  fclose(fp);  return 0;}/** * Creates the cache * @param numSets the number of sets in the cache * @param numLines the number of lines per set * @param blockSize the size of the blocks * @return the created cache */struct cache setCache(long long numSets, int numLines, long long blockSize){  struct cache myCache;  struct set cacheSet;  struct lineInfo cacheLine;    myCache.sets = (struct set*) malloc(sizeof(struct set) * numSets);//malloc space for the cache  for (int set_index = 0; set_index < numSets; set_index++){ //loops through every set         cacheSet.lines =  (struct lineInfo *) malloc(sizeof(struct lineInfo) * numLines);//malloc space for the lines in each set    myCache.sets[set_index] = cacheSet;    for (int line_index = 0; line_index < numLines; line_index++){ //loop through every line, initializing all fields to 0      cacheLine.lastUsed = 0;      cacheLine.validBit = 0;      cacheLine.tag = 0;       cacheSet.lines[line_index] = cacheLine;	    }		  }   return myCache;}/** *Determines which line in the set is empty, if any * @param mySet the set to look in * @param info the info about the set * @return the index of the first empty line, or -1 if all lines are full */int emptyLine(struct set mySet, struct cacheInfo info) {	  int emptyLine = -1;//the location of the empty line, initialized to -1 for no lines available  int numLines = info.associativity;  struct lineInfo line;  for (int i = 0; i < numLines; i++) {//loop through every line in the set    line = mySet.lines[i];    if (line.validBit == 0) {//if the valid bit is 0, it's empty      emptyLine = i;//store it as the empty line index      return emptyLine;//return empty line    }  }  return emptyLine;//returns -1, cache is full}/** * Determines the least recently used line for use with eviction * @param mySet the set to look in  * @param info the info about the set * @param linesUsed an array of two ints to hold the most and least recently used * @return the index of the least recently used line */int leastRecentlyUsed(struct set mySet, struct cacheInfo info, int *linesUsed) {    int numLines = info.associativity;  int maxFreqUsage = mySet.lines[0].lastUsed;//stores the frequency of usage  int minFreqUsage = mySet.lines[0].lastUsed;//stores the frequency of usage  int minFreqUsage_index = 0;//the index of the lowest used line  for (int line_index = 1; line_index < numLines; line_index++) {//loop through the lines in the set    if (minFreqUsage > mySet.lines[line_index].lastUsed) {//if the minimum frequency is greater than the last used frequency in the current line      minFreqUsage_index = line_index;//store the current line's index in the minimum index      minFreqUsage = mySet.lines[line_index].lastUsed;//store the value as the new minimum frequency    }    if (maxFreqUsage < mySet.lines[line_index].lastUsed) {//if the max frequency is less than the last used frequency in the current line      maxFreqUsage = mySet.lines[line_index].lastUsed;//store the value as the new max frequency    }  }  linesUsed[0] = minFreqUsage;//store the minimum usage value  linesUsed[1] = maxFreqUsage;//store the maximum usage value  return minFreqUsage_index;//return the index of the lru line}/** * Performs the lookup for the address within the cache * @param myCache the cache to look in * @param info the info about the cache * @param address the address to look up * @return the updated info for the set in the cache the address is located in */struct cacheInfo cacheLookup(struct cache myCache, struct cacheInfo info, memoryAddress address) {  int fullCache = 1;//assume the cache is full  int numLines = info.associativity;  int lastHit = info.num_hits;  int tagSize = 64 - (info.index_bits + info.block_bits);//determine the size of the tag  memoryAddress inputTag = address >> (info.index_bits + info.block_bits);//bit manipulation to get the tag  unsigned long long tempIndex = address << tagSize;//bit manipulation to get the index  unsigned long long setIndex = tempIndex >> (tagSize + info.block_bits);//bit manipulation to get the index  struct set mySet = myCache.sets[setIndex];//go to the proper set in the cache  for (int lineIndex = 0; lineIndex < numLines; lineIndex++) 	{//loop through the set				    if (mySet.lines[lineIndex].validBit) {//if the valid bit is 1					      if (mySet.lines[lineIndex].tag == inputTag) {//if the input tag matches the tag currently in the cache	mySet.lines[lineIndex].lastUsed++;//update the last used field	info.num_hits++;//update the hit field      }    }    else if (!(mySet.lines[lineIndex].validBit) && (fullCache)) {//if the valid bit is 0 and the program thinks the cache is full      fullCache = 0;//set the cache to 0 because it isn't full    }  }	  if (lastHit == info.num_hits) {//if nothing was incremented above, it was a miss    info.num_misses++;//increment misses  }  else {//otherwise it hit and just return the info    return info;  }  int *linesUsed = (int*) malloc(sizeof(int) * 2);//create the int array to store the lru computations  int minFreqUsage_index = leastRecentlyUsed(mySet, info, linesUsed);//the index of the lru	  if (fullCache){//if the cache is full an eviction is needed      info.num_evicts++;//increment eviction count      mySet.lines[minFreqUsage_index].tag = inputTag;//write to the index of the lru      mySet.lines[minFreqUsage_index].lastUsed = linesUsed[1] + 1;    }  else//otherwise write to an empty line    {      int empty_index = emptyLine(mySet, info);//determine the closest empty line      mySet.lines[empty_index].tag = inputTag;//write to it      mySet.lines[empty_index].validBit = 1;      mySet.lines[empty_index].lastUsed = linesUsed[1] + 1;    }						  return info;}
